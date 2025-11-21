@@ -1,0 +1,44 @@
+---
+title: "hw_2"
+output: html_document
+date: "2025-10-04"
+---
+
+```{r}
+library(tidyverse)
+#readr is part of tidyverse
+library(readxl)
+library(haven)
+library(dplyr)
+library(car)
+```
+
+```{r}
+naval_hospitals_df=
+  read_excel("data/HW2 - Question 2.xlsx")
+
+# 1) Fit full model
+fit <- lm(y ~ x_1 + x_2 + x_3 + x_4 + x_5, data = naval_hospitals_df)
+
+# 2) ANOVA table (overall F-test)
+anova(fit)
+
+# 3) Coefficient table
+summary(fit)
+
+# 4) Look at VIFs
+car::vif(fit)
+
+
+
+
+#Drop (x_1) because it has highest VIF, refit, check VIFs
+fit1 <- lm(y ~ x_2 + x_3 + x_4 + x_5, data = naval_hospitals_df)
+summary(fit1)
+car::vif(fit1)
+anova(fit1)
+
+
+car::Anova(fit1, type=2)
+```
+

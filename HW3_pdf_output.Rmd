@@ -1,0 +1,358 @@
+---
+title: "Assignment 3 - PDF"
+output: pdf_document
+date: "2025-11-08"
+author: "Devon Park - dap2189"
+header-includes:
+  - \usepackage{soul}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.align = 'center',
+  out.width = '80%',
+  fig.width = 7,
+  fig.height = 5,
+  digits = 3
+)
+
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+```
+
+### Question 1
+
+The data below show plasma inorganic phosphate measurements obtained from 13 controls (‘group’ = 0) and 20 obese patients (‘group’ =1) taken initially (‘initial’) and 3 hours after an oral glucose challenge (‘final’). The aim is to find if there is a difference in the final phosphate measurements between the two groups after adjusting for any initial difference.
+
+```{r, echo=FALSE}
+# Import the data
+
+Q1 = read_excel("data/Asst_3_Q1.xlsx")
+knitr::kable(head(Q1), caption = "First few rows of Q1 dataset")
+```
+
+#### (a) Write down a simple ANCOVA model for data shown, using the control group as a reference.
+
+```{r, echo=FALSE}
+m1 <- lm(final ~ group + initial, data = Q1)
+summary(m1)
+```
+
+Parallel slopes Model: 
+
+$final = \beta_0 + \beta_1 * group + \beta_2 * initial + \epsilon$
+
+\hl {Model with coefficients:} 
+
+$final = 0.889 - 0.234x_{group} + 0.601x_{initial}$
+
+*Note: group = 0 for the control (reference group) and group = 1 for obese patients.*
+
+
+#### (b) Test for any difference in the outcome between the two groups.  
+
+```{r, include = FALSE, eval = FALSE}
+# If i wanted to make group a factor variable (rather than a binary 0/1), but this is not necessary
+
+Q1 = Q1 |> 
+  mutate(group = factor(group, 
+                        levels = c(0, 1), 
+                        labels = c("Control", "Obese")))
+
+```
+
+
+```{r, echo=FALSE, results = 'hide'}
+summary(m1)           
+anova(m1)               # shows F-test for group and Initial
+```
+
+
+Looking at our regression model, we see the coefficient for variable group is $-0.234$ with a p-value of $0.286$. This means that the adjusted difference in the final phosphate readings for obese participants compared to control participants is $-0.234$. However, the p-value is greater than 0.05 which means this difference is not statistically significant at the 5% significance level. 
+
+#### (c) Does the initial phosphate value contribute significantly to the final phosphate value?  
+
+
+Looking at our regression model, we see the coefficient for variable initial is $0.601$ with a p-value of $0.004$. This means that for every one unit increase in initial phosphate value, the final phosphate value increases by roughly 0.6 units, after adjusting for group. That the p-value is less than 0.05 suggests the association between initial and final phosphate scores is statistically significant. 
+
+#### (d) Repeat the ANCOVA without assuming parallel slopes for the two groups  
+
+
+The interaction term tests whether the relation between initial and final phosphate values differ by group. If slopes are parallel $\beta_3=0$. 
+
+```{r, echo=FALSE}
+#add an interaction term between group and initial 
+
+m2 <- lm(final ~ group + initial + group:initial, data = Q1)
+
+summary(m2)
+anova(m1, m2)
+```
+
+Non-parallel slopes Model: 
+
+$final = \beta_0 + \beta_1 * group + \beta_2 * initial + \beta_3 * (group*initial) + \epsilon$
+
+\hl {Model with coefficients:}
+
+$final = 0.538 + 0.190x_{group} + 0.686x_{initial} - 0.102x_{group*initial}$
+
+*Note: group = 0 for the control patients (reference group) and group = 1 for obese patients.*
+
+
+
+The interaction term in model2 is $\beta_3=-0.102$ with a p-value of $0.810$. That the p-value is >0.05 suggests that initial and final phosphate values are not statistically significantly different depending on group. In other words, the association between initial and final phosphate scores is roughly similar across both groups. 
+
+
+Additionally, I ran `anova(m1, m2)` to compare m1 (parallel slopes model) with m2 (non-parallel slopes model). From this test, I get an F test statistic of $0.059$ with a p-value of $0.810$ suggesting that adding the interaction term does not significantly improve the model. In other words, we fail to reject the null hypothesis $H_0: \beta_3 =0$. 
+
+
+## Question 2
+
+The US Navy attempts to develop equations for estimation of manpower needs for manning installations such as Bachelor Officers Quarters (BOQ). Regression equations are developed from data taken by measurement teams. The data in the attached excel file were collected from 25 BOQ sites.
+
+###### Variables of Dataset:
+$X_1$ = average daily occupancy
+
+$X_2$ = monthly average number of check-ins 
+
+$X_3$ = weekly hours of service desk operation
+
+$X_4$ = square feet of common use area
+
+$X_5$ = Number of building wings
+
+$X_6$ = operational berthing capacity
+
+$X_7$ = number of rooms
+
+$Y$ = monthly man-hours
+
+#### (a) Fit the regression model
+
+```{r, echo=FALSE}
+#Import Data set
+
+Q2 = read_excel("data/Asst3_Q2.xlsx")
+knitr::kable(head(Q2), caption = "First few rows of Q2 dataset")
+```
+
+```{r, echo=FALSE}
+#Run model
+m3 = lm(y ~ x1 + x2 + x3 + x4+ x5 + x6 + x7, data = Q2)
+summary(m3)
+```
+
+From our regression model I get the following result:
+Regression Model Form: 
+
+$Y = \beta_0 + \beta_1x_1 + \beta_2x_2 + \beta_3x_3 + \beta_4x_4 + \beta_5x_5 + \beta_6x_6 + \beta_7x_7 + \epsilon$
+
+\hl {Regresssion Model:} 
+
+$Y = 135.038 - 1.284x_1 + 1.804x_2 + 0.669x_3 - 21.436x_4 + 5.622x_5 - 14.490x_6 + 29.335x_7$
+
+#### (b) Perform a residual plot and make any necessary transformations.
+
+```{r, echo=FALSE}
+#Include columns for residuals and and fitted values.
+
+Q2 = 
+  Q2 |> 
+    mutate(
+    residuals = resid(m3),
+    fitted = fitted(m3)
+  )
+```
+
+```{r, echo=FALSE}
+#Create residual plot
+
+
+ggplot(Q2, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "steelblue") +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted Values",
+    y = "Residuals"
+  ) +
+  theme_minimal()
+```
+
+
+Based on the residual plot, we see a funneling effect suggesting heteroscedasticity (residuals spreading as our fitted values increase). This suggests that we should transform our data using a natural log. 
+
+```{r, echo=FALSE}
+#log transform the data 
+
+Q2 =
+  Q2 |>
+    mutate(log_y = log(y))
+```
+
+
+#### (c) Refit a linear regression based on your transformation.
+
+Refit the model with the log transformation:
+```{r, echo=FALSE}
+m3_log <- lm(log_y ~ x1 + x2 + x3 + x4 + x5 + x6 + x7, data = Q2)
+summary(m3_log)
+```
+
+As an added step, we can check the residuals again:
+- After the log transformation, we see that our residuals form a cloud like shape suggesting a more even spread. 
+```{r, echo=FALSE}
+Q2 = 
+  Q2 |> 
+    mutate(
+      residuals_log = resid(m3_log),
+      fitted_log = fitted(m3_log)
+          )
+
+ggplot(Q2, aes(x = fitted_log, y = residuals_log)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "steelblue", linetype = "dashed") +
+  labs(
+    title = "Residuals vs Fitted (After Log Transformation)",
+    x = "Fitted Values",
+    y = "Residuals"
+  ) +
+  theme_minimal()
+```
+
+
+
+#### (d) Compute the hat diagonals, Standardized residuals, Cook’s distance, and Studentized residuals for the model in (c)  
+
+
+```{r, echo=FALSE}
+
+#fitted already calculated
+
+Q2_diagnostics = 
+    Q2 |> 
+    mutate(
+      hat = hatvalues(m3_log),
+      std_resid = rstandard(m3_log),
+      stud_resid = rstudent(m3_log),
+      cooks = cooks.distance(m3_log)
+      ) |> 
+  mutate(across(where(is.numeric), ~ round(.x, 3))) |> 
+  select(-(x1:x7))
+
+knitr::kable(Q2_diagnostics)
+```
+
+*Note: Removed columns x1:x7 for the above table to make the tables fit on the page*
+
+#### (e) Identify any influential points and discuss the nature of the influence.
+
+We can use cooks distance to look at how much the fitted model changes when a certain observation is removed. We consider a point influential if D (cook's distance) is greater than 1.
+
+```{r, echo=FALSE}
+#Using cook's distance only
+
+Q2_diagnostics = 
+  Q2_diagnostics |>
+    mutate(
+      influential = cooks > 1
+      )
+
+Q2_diagnostics |> knitr::kable()
+```
+
+
+By filtering our table, we can see how there is only 1 influential point:
+```{r, echo=FALSE}
+Q2_diagnostics |> 
+  filter(influential) |> 
+  as.data.frame() |>
+  knitr::kable(
+    format    = "latex",   # be explicit: we're in PDF/LaTeX
+    booktabs  = TRUE,
+    longtable = FALSE,     # needed for scale_down to work
+    row.names = FALSE
+  ) |>
+  kableExtra::kable_styling(
+    latex_options = c("scale_down", "hold_position"),
+    full_width    = TRUE,   # let it use full text width, then scale
+    position      = "center",
+    font_size     = 8
+  )
+```
+
+*Note: Removed columns x2:x7 for the above table to make the tables fit on the page*
+
+Points that are high leverage (large hat diagonal) tell us that the observation's value on the x axis is distant from the mean. With our influential point we see a large hat diagonol value of 0.988. This indicates that it was distant on the x-axis compared to the other points. As it is an influential point, so we will not remove it from our data.
+
+#### (f) Identify any outliers and take any remedial action necessary.
+
+We look a the studentized residuals (standardized residuals) to find outliers ,r. If $|r| > 2$, we classify this point as an outlier. 
+```{r, echo=FALSE}
+#Look at stud_resid where absolute value is greater than 2 to see if it is an outlier
+
+Q2_diagnostics |> 
+  filter(abs(stud_resid) > 2) |> 
+  mutate(across(where(is.numeric), ~ round(.x, 3))) |>
+  as.data.frame() |>
+  knitr::kable(
+    format    = "latex",   # be explicit: we're in PDF/LaTeX
+    booktabs  = TRUE,
+    longtable = FALSE,     # needed for scale_down to work
+    row.names = FALSE
+  ) |>
+  kableExtra::kable_styling(
+    latex_options = c("scale_down", "hold_position"),
+    full_width    = TRUE,   # let it use full text width, then scale
+    position      = "center",
+    font_size     = 8
+  )
+
+```
+
+*Note: Removed columns x1:x7 for the above table to make the tables fit on the page*
+
+We can see outliers graphically below:
+```{r, echo=FALSE}
+#Visualize the outlier 
+
+ggplot(Q2_diagnostics, aes(x = fitted, y = stud_resid)) +
+  geom_point(aes(color = abs(stud_resid) > 2), size = 2) +
+  geom_hline(yintercept = c(-2, 2), color = "steelblue", linetype = "dashed") +
+  labs(
+    title = "Studentized Residuals vs Fitted Values",
+    x = "Fitted Values",
+    y = "Studentized Residuals",
+    color = "Outlier (|r| > 2)"
+  ) +
+  scale_color_manual(values = c("FALSE" = "grey60", "TRUE" = "red")) +
+  theme_minimal()
+```
+
+The point at site 7 is found as an outlier because the absolute value of the studentized residuals is greater than 2. So, we remove this point from our dataset and refit the model. 
+
+```{r, echo=FALSE}
+Q2 = 
+  Q2 |> 
+    mutate(
+      residuals_log = resid(m3_log),
+      fitted_log = fitted(m3_log)
+          ) |> 
+  filter(Site != 7)
+```
+
+```{r, echo=FALSE}
+m3_log <- lm(log_y ~ x1 + x2 + x3 + x4 + x5 + x6 + x7, data = Q2)
+summary(m3_log)
+```
+
+After remediation, here is the \hl {final model}: 
+
+$ln(Y)= 4.993 - 0.000013X_1 + 0.000703X_2 + 0.008177X_3 + 0.023974X_4 - 0.007540X_5 - 0.004019X_6 + 0.007999X_7$
+

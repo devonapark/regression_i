@@ -184,13 +184,14 @@ Q2_stepwise_model <- step(m3_final, direction = "both")
 summary(Q2_stepwise_model)
 ```
 
-Stepwise adds and removes predictors until AIC is minimized
+In R, stepwise adds and removes predictors until AIC is minimized. AIC balances two factors: model fit (better fit → lower AIC) AND model simplicity (fewer parameters → lower AIC)
 
-where AIC balances two factors: model fit (better fit → lower AIC) AND model simplicity (fewer parameters → lower AIC)
+Note: Becuase it uses AIC, I cannot set my alpha_1 or alpha_2 levels like we talked about in class. 
 
 After stepwise (forwards and backwards), our best model is the following:
 
 $Y= 40.421 - 0.824X_1 + 0.021X_3 + 0.184X_6$
+
 
 
 ### Question 2

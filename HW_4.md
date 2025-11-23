@@ -279,10 +279,12 @@ summary(Q2_stepwise_model)
     ## Multiple R-squared:  0.5581, Adjusted R-squared:  0.5212 
     ## F-statistic: 15.15 on 3 and 36 DF,  p-value: 1.541e-06
 
-Stepwise adds and removes predictors until AIC is minimized
+In R, stepwise adds and removes predictors until AIC is minimized. AIC
+balances two factors: model fit (better fit → lower AIC) AND model
+simplicity (fewer parameters → lower AIC)
 
-where AIC balances two factors: model fit (better fit → lower AIC) AND
-model simplicity (fewer parameters → lower AIC)
+Note: Becuase it uses AIC, I cannot set my alpha_1 or alpha_2 levels
+like we talked about in class.
 
 After stepwise (forwards and backwards), our best model is the
 following:

@@ -1,0 +1,276 @@
+---
+title: "HW_4"
+output: github_document
+date: "2025-11-21"
+---
+
+```{r, echo=FALSE, message=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(car)
+library(tidyr)
+```
+
+### Question 1
+These data in the attached excel file relate to air pollution in 41 US cities. There is a single dependent variable, the annual mean concentration of sulfur dioxide, in micrograms per cubic meter. These data generally relate to means for the three years 1969-71. The values of six explanatory variables are also recorded, two of which relate to human ecology, and four to climate. The variables are as follows:
+
+Y: SO2 content of air in micrograms per cubic meter
+X1: Average annual temperature in oF
+X2: Number of manufacturing enterprises employing 20 or more workers
+X3: Population size (1970 census); in thousands
+X4: Average annual wind speed in miles per hour
+X5: Average annual precipitation in inches
+X6: Average number of days with precipitation per year
+For this data:
+
+```{r, echo=FALSE}
+# Import the data
+
+Q1 = read_excel("data/P8100_04_1.xlsx")
+
+# Clean data 
+
+Q1 = Q1 |> 
+  janitor::clean_names()
+
+knitr::kable(head(Q1), caption = "First few rows of Q1 dataset")
+```
+
+
+###### (a) Fit the regression model
+
+```{r, echo=FALSE}
+#Run model
+m1 = lm(y ~ x1 + x2 + x3 + x4+ x5 + x6, data = Q1)
+summary(m1)
+```
+
+
+###### (b) Obtain the multicollinearity diagnostics and take any necessary remedial action.
+
+Check VIFs
+
+```{r}
+vif(m1)
+```
+
+Variable x2 (Number of manufacturing enterprises employing 20 or more workers) and x3 (Population size (1970 census); in thousands) both have VIFs greater than 10 which suggest high levels of multicollinearity. 
+
+We will remove one at a time and re run the model:
+```{r}
+# Model without x2
+m2 = lm(y ~ x1 + x3 + x4+ x5 + x6, data = Q1)
+summary(m2)
+vif(m2)
+```
+
+After removing x2, all variables have VIFs are below 5. 
+
+###### (c) Based on (b), re-run the multiple linear regression and show the residual plot.Comment on any observation
+
+#### (b) Perform a residual plot and make any necessary transformations.
+
+```{r, echo=FALSE}
+#Include columns for residuals and and fitted values.
+
+Q1_diagnostics = 
+  Q1 |> 
+    select(-x2) |> 
+    mutate(
+    residuals = resid(m2),
+    fitted = fitted(m2)
+  )
+
+```
+
+```{r, echo=FALSE}
+#Create residual plot
+
+ggplot(Q1_diagnostics, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "steelblue") +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted Values",
+    y = "Residuals"
+  ) +
+  theme_minimal()
+```
+
+Plot looks roughly like a cloud (o curvature or funneling effect), so no transformation is necessary. 
+
+###### (d) Test for any outliers and take any remedial action
+
+
+```{r, echo=FALSE}
+
+#fitted already calculated
+
+Q1_diagnostics = 
+    Q1_diagnostics |> 
+    mutate(
+      hat = hatvalues(m2),
+      std_resid = rstandard(m2),
+      stud_resid = rstudent(m2),
+      cooks = cooks.distance(m2)
+      ) |> 
+  mutate(across(where(is.numeric), ~ round(.x, 3))) 
+
+knitr::kable(Q1_diagnostics)
+```
+
+Look a the studentized residuals (standardized residuals, r) to find outliers. If $|r| > 2$, this point is as an outlier. 
+
+```{r, echo=FALSE}
+
+Q1_diagnostics |> 
+  filter(abs(stud_resid) > 2) 
+
+```
+
+It appears that only one point fits the criteria to be an outlier: point 31 for Providence (|studentized residuals| > 4). 
+
+Graphically, we can see visualize our outlier. We can see outliers graphically below:
+```{r, echo=FALSE}
+#Visualize the outlier 
+
+ggplot(Q1_diagnostics, aes(x = fitted, y = stud_resid)) +
+  geom_point(aes(color = abs(stud_resid) > 2), size = 2) +
+  geom_hline(yintercept = c(-2, 2), color = "steelblue", linetype = "dashed") +
+  labs(
+    title = "Studentized Residuals vs Fitted Values",
+    x = "Fitted Values",
+    y = "Studentized Residuals",
+    color = "Outlier (|r| > 2)"
+  ) +
+  scale_color_manual(values = c("FALSE" = "grey60", "TRUE" = "red")) +
+  theme_minimal()
+```
+
+After removing this point from our dataset, we can refit the model. 
+
+
+```{r, echo=FALSE}
+Q1_final = 
+  Q1_diagnostics |> 
+    filter(count != 31) |> 
+      select(count, city, y, x1, x3, x4, x5, x6)
+```
+
+
+###### (e) Based on (d), re-run the multiple linear regression
+
+```{r, echo=FALSE}
+m3_final <- lm(y ~ x1 + x3 + x4 + x5 + x6, data = Q1_final)
+summary(m3_final)
+```
+
+
+WHAT ABOUT THE FACT THAT OUR PVALUES ARE HIGH?!!?!?!
+
+After remediation, here is the **final model** rounded to three decimals: 
+
+$Y= 53.463 -1.034X_1 + 0.021X_3 -0.100X_4 +0.195X_5 +0.123X_6$
+
+
+
+###### (f) Perform a stepwise regression and obtain the best model.
+
+
+```{r}
+Q2_stepwise_model <- step(m3_final, direction = "both")
+summary(Q2_stepwise_model)
+```
+
+Stepwise adds and removes predictors until AIC is minimized
+
+where AIC balances two factors: model fit (better fit → lower AIC) AND model simplicity (fewer parameters → lower AIC)
+
+After stepwise (forwards and backwards), our best model is the following:
+
+$Y= 40.421 - 0.824X_1 + 0.021X_3 + 0.184X_6$
+
+
+### Question 2
+
+The table shows the cross classification of the respondents to a survey according to psychotropic drug use, age, sex, and whether or not they had a physical illness.
+
+Determine if there is a relationship between psychotropic drug use and physical illness, adjusting for age group and gender
+
+
+```{r}
+#Import Data
+
+Q2 = read_excel("data/Q2_p4_data.xlsx") |> 
+  janitor::clean_names() |> 
+    rename(
+      total_ill = ill_total,
+      drugs_ill = ill_taking_drugs,
+      total_notill = not_ill_total,
+      drugs_notill = not_ill_taking_drugs
+    )
+  
+
+
+```
+
+
+```{r}
+#pivot data to ungroup my variables 
+Q2_long <- Q2 |> 
+  pivot_longer(
+    cols = c(total_ill, drugs_ill,
+             total_notill, drugs_notill),
+    names_to = c(".value", "illness"),  #".value" = Use part of the column name as the names of the output columns
+    names_pattern = "(.*)_(.*)") |> 
+    mutate( illness = factor(illness, levels = c("notill", "ill")))
+
+#factor illness so that notill becomes the reference group when i run my model
+```
+
+
+Run my group level logistic regression 
+
+```{r}
+
+
+
+Q2_m1 <- glm(cbind(drugs, total - drugs) ~ illness + age + sex,
+  family = binomial,
+  data = Q2_long
+)
+
+summary(Q2_m1)
+
+#using glm() gneralized linear model 
+#family = binomial means logistic regression 
+#cbind(drugs, total - drugs) tells R that my data is on the group level --> Each row in my dataset does not represent 1 person — it represents a group of people.
+    #drugs = number of successes 
+    #total-drugs = number of failures
+#then "~" fit my model using the predictors illness, age, and sex --> Model the probability of taking drugs using illness status, age, and sex.
+```
+
+```{r}
+
+#OR
+exp(1.9380)
+
+#CI
+confint(Q2_m1)
+exp(1.30626528)  
+exp(2.660072)
+exp(confint(Q2_m1))
+
+#exponentiate beta of illness_ill to get odds ratio
+```
+
+**INTERPRETATION:**
+
+After adjusting for age and gender, the odds of taking psychotropic drugs for physically ill individuals is, on average, 6.94 times the odds of taking psychotropic drugs for not physically ill individuals (95% CI: 3.69, 14.30, p < 0.001). The p-value is < 0.05 which suggests at a 5% level of significance, this association is statistically significant. 
+
+
+
+
+
